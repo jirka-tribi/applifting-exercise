@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "applifting_exercise"
+version = "1.0.0"
+description = "Applifting exercise project"
+authors = ["Jiri Tribula <jiri.tribula@gmail.com>"]
+packages = [
+    {include="applifting_exercise", from="src"}
+]
+include = ["*.sql", "py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+"aiohttp" = "^3.8.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.1"
+pytest-asyncio = "^0.18.3"
+pytest-cov = "^3.0.0"
+pytest-mypy = "^0.9.1"
+pytest-pylint = "^0.18.0"
+
+[tool.poetry.scripts]
+run-applifting-exercise = "applifting_exercise.__main__:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "--verbose --pylint --pylint-rcfile=pyproject.toml --cov=applifting_exercise --cov-report html --mypy"
+
+[tool.pylint.messages_control]
+enable = "all"
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""
+ignored_argument_names = "_.*|^ignored_|^unused_|args|kwargs"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
