@@ -4,7 +4,7 @@ from importlib.metadata import version
 from aiohttp import web
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
-from aiohttp_pydantic import PydanticView
+from aiohttp_pydantic import PydanticView, oas
 from pydantic import BaseModel
 
 logging.basicConfig(
@@ -27,7 +27,8 @@ class TestView(PydanticView):
     async def get(self, test_request: TestRequest) -> Response:
         test_string_1 = test_request.test_string
 
-        test_string_2 = self.request.app["test_dict"]["TEST"]
+        database: TestDB = self.request.app.database
+        test_string_2 = await database.get_item()
 
         response = TestResponse(test_string_1=test_string_1, test_string_2=test_string_2)
 
@@ -41,9 +42,10 @@ class WebServer:
 
         self.web_app = web.Application()
         self.runner = web.AppRunner(self.web_app)
+        oas.setup(self.web_app, url_prefix="/api")
 
-        self.test_dict = {"TEST": "TEST_STRING"}
-        self.web_app["test_dict"] = self.test_dict
+        database = TestDB()
+        setattr(self.web_app, "database", database)
 
     def _add_routes(self) -> None:
         self.web_app.router.add_route("GET", "/", self.get_all_routes)
@@ -89,3 +91,11 @@ class WebServer:
     async def aclose(self) -> None:
         await self.runner.shutdown()
         await self.runner.cleanup()
+
+
+class TestDB:
+    def __init__(self) -> None:
+        self.test_string = "TEST_STRING"
+
+    async def get_item(self) -> str:
+        return self.test_string
