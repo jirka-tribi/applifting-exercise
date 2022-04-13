@@ -5,7 +5,11 @@ from aiohttp import web
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 from aiohttp_pydantic import PydanticView, oas
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
+from typing import Callable, Any
+from functools import wraps
+from jose import jwt
+from jose.exceptions import JWTError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,13 +18,41 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
+@web.middleware
+def auth_access() -> Callable[..., Any]:
+    def wrapped(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        async def wrapper(
+            view_instance: "PydanticViewWithDatabase", request, authorization
+        ) -> Any:
+            if authorization[:7] == "Bearer ":
+                authorization_token = authorization[7:]
+            else:
+                return web.Response(
+                    text="Invalid Authorization Bearer field in HTTP header",
+                    status=401,
+                )
+            try:
+                result = jwt.decode(authorization_token, "TEST_PASSWORD", algorithms=["RS256"])
+                LOGGER.info("User %s is authorized" % result)
+            except JWTError as e:
+                LOGGER.exception(e)
+                return web.Response(text=str(e), status=401)
+
+            return await func(view_instance, request, authorization="")
+
+        return wrapper
+
+    return wrapped
+
+
 class TestResponse(BaseModel):
     test_string_1: str
     test_string_2: str
 
 
 class TestRequest(BaseModel):
-    test_string: str
+    test_string: constr(min_length=10, max_length=15)
 
 
 class PydanticViewWithDatabase(PydanticView):
@@ -30,8 +62,9 @@ class PydanticViewWithDatabase(PydanticView):
 
 
 class TestView(PydanticViewWithDatabase):
-    async def get(self, test_request: TestRequest) -> Response:
-        test_string_1 = test_request.test_string
+    @auth_access()
+    async def get(self, request: TestRequest, *, authorization: str) -> Response:
+        test_string_1 = request.test_string
         test_string_2 = await self.database.get_item()
 
         response = TestResponse(test_string_1=test_string_1, test_string_2=test_string_2)
