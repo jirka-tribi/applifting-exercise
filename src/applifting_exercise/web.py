@@ -1,15 +1,17 @@
+from __future__ import annotations
+
 import logging
+from functools import wraps
 from importlib.metadata import version
+from typing import Any, Callable
 
 from aiohttp import web
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 from aiohttp_pydantic import PydanticView, oas
-from pydantic import BaseModel, constr
-from typing import Callable, Any
-from functools import wraps
 from jose import jwt
 from jose.exceptions import JWTError
+from pydantic import BaseModel, Field
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,11 +24,16 @@ LOGGER = logging.getLogger(__name__)
 def auth_access() -> Callable[..., Any]:
     def wrapped(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(
-            view_instance: "PydanticViewWithDatabase", request, authorization
-        ) -> Any:
-            if authorization[:7] == "Bearer ":
-                authorization_token = authorization[7:]
+        async def wrapper(view_instance: "PydanticViewWithDB", request: PydanticView) -> Any:
+            if "Authorization" in view_instance.request.headers:
+                authorization_string = view_instance.request.headers["Authorization"]
+            else:
+                return web.Response(
+                    text="Authorization field in HTTP header is required",
+                    status=401,
+                )
+            if authorization_string[:7] == "Bearer ":
+                authorization_token = authorization_string[:7]
             else:
                 return web.Response(
                     text="Invalid Authorization Bearer field in HTTP header",
@@ -39,7 +46,7 @@ def auth_access() -> Callable[..., Any]:
                 LOGGER.exception(e)
                 return web.Response(text=str(e), status=401)
 
-            return await func(view_instance, request, authorization="")
+            return await func(view_instance, request)
 
         return wrapper
 
@@ -52,36 +59,22 @@ class TestResponse(BaseModel):
 
 
 class TestRequest(BaseModel):
-    test_string: constr(min_length=10, max_length=15)
+    test_string: str = Field(..., min_length=10, max_length=15)
 
 
 class InvalidToken(JWTError):
     pass
 
 
-class PydanticViewAuthDB(PydanticView):
+class PydanticViewWithDB(PydanticView):
     def __init__(self, request: Request) -> None:
         super().__init__(request)
         self.database: TestDB = self.request.app.database
 
-    async def _validate(self, authorization) -> None:
-        if authorization[:7] == "Bearer a":
-            authorization_token = authorization[7:]
-        else:
-            raise InvalidToken("Invalid Authorization Bearer field in HTTP header")
 
-        result = jwt.decode(authorization_token, "TEST_PASSWORD", algorithms=["RS256"])
-        LOGGER.info("User %s is authorized" % result)
-
-
-class TestView(PydanticViewAuthDB):
-    async def get(self, request: TestRequest, *, authorization: str) -> Response:
-        try:
-            await self._validate(authorization)
-        except JWTError as e:
-            LOGGER.exception(e)
-            return web.Response(text=str(e), status=401)
-
+class TestView(PydanticViewWithDB):
+    @auth_access()
+    async def get(self, request: TestRequest) -> Response:
         test_string_1 = request.test_string
         test_string_2 = await self.database.get_item()
 

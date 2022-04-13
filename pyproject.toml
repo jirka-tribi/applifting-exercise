@@ -30,6 +30,9 @@ run-applifting-exercise = "applifting_exercise.__main__:main"
 asyncio_mode = "auto"
 addopts = "--verbose --pylint --pylint-rcfile=pyproject.toml --cov=applifting_exercise --cov-report html --mypy"
 
+[tool.pylint.master]
+good-names = "e"
+
 [tool.pylint.messages_control]
 enable = "all"
 disable = """
@@ -38,7 +41,9 @@ disable = """
     missing-function-docstring,
     no-name-in-module,
     too-few-public-methods,
-    unspecified-encoding
+    unspecified-encoding,
+    logging-not-lazy,
+    consider-using-f-string
 """
 ignored_argument_names = "_.*|^ignored_|^unused_|args|kwargs"
 
@@ -46,7 +51,6 @@ ignored_argument_names = "_.*|^ignored_|^unused_|args|kwargs"
 strict = true
 ignore_missing_imports = true
 disallow_subclassing_any = false
-
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
