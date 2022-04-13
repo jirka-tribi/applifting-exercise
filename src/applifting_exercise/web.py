@@ -1,5 +1,6 @@
 import logging
 from importlib.metadata import version
+from typing import Any, Callable
 
 from aiohttp import web
 from aiohttp.web_request import Request
@@ -19,7 +20,7 @@ ROUTES_WITHOUT_AUTH = ["/test"]
 
 
 @web.middleware
-async def auth_validate(request, handler):
+async def auth_validate(request: Request, handler: Callable[..., Any]) -> Any:
     if request.match_info.get_info()["path"] in ROUTES_WITHOUT_AUTH:
         return await handler(request)
 
