@@ -55,15 +55,33 @@ class TestRequest(BaseModel):
     test_string: constr(min_length=10, max_length=15)
 
 
-class PydanticViewWithDatabase(PydanticView):
+class InvalidToken(JWTError):
+    pass
+
+
+class PydanticViewAuthDB(PydanticView):
     def __init__(self, request: Request) -> None:
         super().__init__(request)
         self.database: TestDB = self.request.app.database
 
+    async def _validate(self, authorization) -> None:
+        if authorization[:7] == "Bearer a":
+            authorization_token = authorization[7:]
+        else:
+            raise InvalidToken("Invalid Authorization Bearer field in HTTP header")
 
-class TestView(PydanticViewWithDatabase):
-    @auth_access()
+        result = jwt.decode(authorization_token, "TEST_PASSWORD", algorithms=["RS256"])
+        LOGGER.info("User %s is authorized" % result)
+
+
+class TestView(PydanticViewAuthDB):
     async def get(self, request: TestRequest, *, authorization: str) -> Response:
+        try:
+            await self._validate(authorization)
+        except JWTError as e:
+            LOGGER.exception(e)
+            return web.Response(text=str(e), status=401)
+
         test_string_1 = request.test_string
         test_string_2 = await self.database.get_item()
 
