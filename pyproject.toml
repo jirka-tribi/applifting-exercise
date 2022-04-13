@@ -36,7 +36,8 @@ disable = """
     missing-class-docstring,
     missing-function-docstring,
     no-name-in-module,
-    too-few-public-methods
+    too-few-public-methods,
+    unspecified-encoding
 """
 ignored_argument_names = "_.*|^ignored_|^unused_|args|kwargs"
 

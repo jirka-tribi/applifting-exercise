@@ -23,12 +23,16 @@ class TestRequest(BaseModel):
     test_string: str
 
 
-class TestView(PydanticView):
+class PydanticViewWithDatabase(PydanticView):
+    def __init__(self, request: Request) -> None:
+        super().__init__(request)
+        self.database: TestDB = self.request.app.database
+
+
+class TestView(PydanticViewWithDatabase):
     async def get(self, test_request: TestRequest) -> Response:
         test_string_1 = test_request.test_string
-
-        database: TestDB = self.request.app.database
-        test_string_2 = await database.get_item()
+        test_string_2 = await self.database.get_item()
 
         response = TestResponse(test_string_1=test_string_1, test_string_2=test_string_2)
 
