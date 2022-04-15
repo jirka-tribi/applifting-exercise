@@ -1,19 +1,21 @@
 import asyncio
-from typing import Optional
+from importlib import resources
+from typing import Any, Dict, Optional
 
-from .database import Database
-from .web import WebServer
+from pyhocon import ConfigFactory
+
+from .web_base import WebServer
 
 
 class App:
     def __init__(self) -> None:
-        self.database: Optional[Database] = None
         self.web_server: Optional[WebServer] = None
 
-    async def setup(self) -> None:
-        self.database = await Database.async_init()
-        await self.database.ensure_schema()
+        # Load config.conf file with all required configurations fields
+        with resources.path(__package__, "config.conf") as pg_config_path:
+            self.config: Dict[str, Any] = ConfigFactory.parse_file(pg_config_path)
 
+    async def setup(self) -> None:
         self.web_server = WebServer()
 
     async def run(self) -> None:
@@ -23,9 +25,6 @@ class App:
     async def aclose(self) -> None:
         if self.web_server:
             await self.web_server.aclose()
-
-        if self.database:
-            await self.database.aclose()
 
 
 def main() -> None:
@@ -40,3 +39,4 @@ def main() -> None:
         pass
     finally:
         loop.run_until_complete(app.aclose())
+        loop.close()

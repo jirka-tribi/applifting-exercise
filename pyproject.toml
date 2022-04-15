@@ -11,7 +11,6 @@ include = ["*.sql", "py.typed"]
 [tool.poetry.dependencies]
 python = "^3.8"
 aiohttp = "^3.8.1"
-asyncpg = "^0.25.0"
 pyhocon = "^0.3.59"
 
 [tool.poetry.dev-dependencies]
