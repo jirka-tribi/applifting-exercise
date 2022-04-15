@@ -1,6 +1,6 @@
 from aiohttp import web
 
-PREFIX_V1 = "/test/v1"
+PREFIX_V1 = "/api/v1"
 
 
 class WebApiV1:

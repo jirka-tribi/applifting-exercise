@@ -7,6 +7,8 @@ from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 
+from .web_v1 import PREFIX_V1, WebApiV1
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)s] - %(levelname)-8s %(name)s: %(message)s",
@@ -23,7 +25,7 @@ class WebServerBase:
         self._add_routes()
         self.runner = web.AppRunner(self.web_app_base)
 
-        self.web_app_base.add_subapp(prefix=PREFIX_V1, subapp=WebAppV1().return_v1)
+        self.web_app_base.add_subapp(prefix=PREFIX_V1, subapp=WebApiV1().return_v1)
 
     def _add_routes(self) -> None:
         self.web_app_base.router.add_route("GET", "/", self.basic_info)

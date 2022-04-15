@@ -4,19 +4,19 @@ from typing import Any, Dict, Optional
 
 from pyhocon import ConfigFactory
 
-from .web_base import WebServer
+from .web_base import WebServerBase
 
 
 class App:
     def __init__(self) -> None:
-        self.web_server: Optional[WebServer] = None
+        self.web_server: Optional[WebServerBase] = None
 
         # Load config.conf file with all required configurations fields
         with resources.path(__package__, "config.conf") as pg_config_path:
             self.config: Dict[str, Any] = ConfigFactory.parse_file(pg_config_path)
 
     async def setup(self) -> None:
-        self.web_server = WebServer()
+        self.web_server = WebServerBase()
 
     async def run(self) -> None:
         assert self.web_server is not None
