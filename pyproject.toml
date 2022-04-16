@@ -12,7 +12,10 @@ include = ["*.sql", "py.typed"]
 python = "^3.8"
 aiohttp = "^3.8.1"
 asyncpg = "^0.25.0"
+bcrypt = "^3.2.0"
 pyhocon = "^0.3.59"
+python-jose = "^3.3.0"
+schema = "^0.7.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.1"
@@ -31,7 +34,7 @@ asyncio_mode = "auto"
 addopts = "--verbose --pylint --pylint-rcfile=pyproject.toml --cov=applifting_exercise --cov-report html --mypy"
 
 [tool.pylint.master]
-good-names = "db"
+good-names = "db,e,id"
 
 [tool.pylint.messages_control]
 enable = "all"

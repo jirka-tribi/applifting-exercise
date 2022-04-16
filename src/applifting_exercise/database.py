@@ -1,9 +1,11 @@
 import logging
 from importlib import resources
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import asyncpg
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
+
+from .models import User
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +24,54 @@ class Database:
         async with self.pg_pool.acquire() as con:
             with resources.path(__package__, "database_schema.sql") as sql_schema_path:
                 await con.execute(sql_schema_path.read_text())
+
+    async def is_user_exists(self, username: str) -> bool:
+        async with self.pg_pool.acquire() as con:
+            is_user_exists = await con.fetchval(
+                """
+                    SELECT EXISTS (
+                        SELECT FROM
+                            users
+                        WHERE
+                            username = $1
+                    )
+                """,
+                username,
+            )
+
+        return bool(is_user_exists)
+
+    async def register_user(self, username: str, hashed_pwd: bytes) -> int:
+        async with self.pg_pool.acquire() as con:
+            user_id = await con.fetchval(
+                """
+                    INSERT INTO
+                        users (username, password)
+                    VALUES
+                        ($1, $2)
+                    RETURNING id
+                """,
+                username,
+                hashed_pwd,
+            )
+
+        return int(user_id)
+
+    async def get_user(self, username: str) -> Optional[User]:
+        async with self.pg_pool.acquire() as con:
+            record = await con.fetchrow(
+                """
+                    SELECT
+                        id, username, password
+                    FROM
+                        users
+                    WHERE
+                        username = $1
+                """,
+                username,
+            )
+
+        return User(record["id"], record["username"], record["password"]) if record else None
 
     async def is_connected(self) -> bool:
         try:

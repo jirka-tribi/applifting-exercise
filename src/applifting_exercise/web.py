@@ -6,7 +6,10 @@ from aiohttp import web
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
+
 from .core import Core
+from .models import USER_REQUEST_SCHEMA
+from .web_middlewares import error_middleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,17 +17,26 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
+PREFIX_V1 = "/api/v1"
+
 
 class WebServer:
     def __init__(self, core: Core) -> None:
         self._core = core
 
-        self._web_app_base = web.Application()
-        self._add_routes()
+        self._web_app_v1 = web.Application(middlewares=[error_middleware])
+        self._web_app_v1["app_internal_token"] = self._core.app_internal_token
 
+        self._web_app_base = web.Application()
+
+        self._add_routes()
+        self._web_app_base.add_subapp(PREFIX_V1, self._web_app_v1)
         self._runner = web.AppRunner(self._web_app_base)
 
     def _add_routes(self) -> None:
+        self._web_app_v1.router.add_route("POST", "/register", self.register)
+        self._web_app_v1.router.add_route("POST", "/login", self.login)
+
         self._web_app_base.router.add_route("GET", "/", self.basic_info)
         self._web_app_base.router.add_route("GET", "/favicon.ico", self.favicon)
         self._web_app_base.router.add_route("GET", "/status", self.status)
@@ -35,6 +47,26 @@ class WebServer:
         # Default host `0.0.0.0` and port `8080`
         site = web.TCPSite(self._runner)
         await site.start()
+
+    async def register(self, request: Request) -> web.Response:
+        data = await request.json()
+        validated_user = USER_REQUEST_SCHEMA.validate(data)
+
+        token = await self._core.register(
+            validated_user["username"].strip(), validated_user["password"].strip()
+        )
+
+        return web.json_response({"token": token})
+
+    async def login(self, request: Request) -> web.Response:
+        data = await request.json()
+        validated_user = USER_REQUEST_SCHEMA.validate(data)
+
+        token = await self._core.login(
+            validated_user["username"].strip(), validated_user["password"].strip()
+        )
+
+        return web.json_response({"token": token})
 
     @staticmethod
     async def basic_info(_: Request) -> Response:

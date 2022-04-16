@@ -23,7 +23,9 @@ class App:
         self.db = await Database.async_init(self.config["postgres"])
         await self.db.ensure_schema()
 
-        self.core = Core(db=self.db)
+        self.core = Core(
+            db=self.db, app_internal_token=self.config["general"]["app_internal_token"]
+        )
 
         self.web_server = WebServer(self.core)
 
