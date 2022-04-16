@@ -4,11 +4,15 @@ from typing import Any, Dict, Optional
 
 from pyhocon import ConfigFactory
 
+from .core import Core
+from .database import Database
 from .web import WebServer
 
 
 class App:
     def __init__(self) -> None:
+        self.db: Optional[Database] = None
+        self.core: Optional[Core] = None
         self.web_server: Optional[WebServer] = None
 
         # Load config.conf file with all required configurations fields
@@ -16,7 +20,12 @@ class App:
             self.config: Dict[str, Any] = ConfigFactory.parse_file(pg_config_path)
 
     async def setup(self) -> None:
-        self.web_server = WebServer()
+        self.db = await Database.async_init(self.config["postgres"])
+        await self.db.ensure_schema()
+
+        self.core = Core(db=self.db)
+
+        self.web_server = WebServer(self.core)
 
     async def run(self) -> None:
         assert self.web_server is not None
@@ -25,6 +34,9 @@ class App:
     async def aclose(self) -> None:
         if self.web_server:
             await self.web_server.aclose()
+
+        if self.db:
+            await self.db.aclose()
 
 
 def main() -> None:

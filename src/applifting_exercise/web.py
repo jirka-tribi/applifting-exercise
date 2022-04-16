@@ -6,6 +6,7 @@ from aiohttp import web
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
+from .core import Core
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,7 +16,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class WebServer:
-    def __init__(self) -> None:
+    def __init__(self, core: Core) -> None:
+        self._core = core
+
         self._web_app_base = web.Application()
         self._add_routes()
 
@@ -52,12 +55,11 @@ class WebServer:
 
         return FileResponse(favicon_path)
 
-    @staticmethod
-    async def status(_: Request) -> Response:
+    async def status(self, _: Request) -> Response:
         # Could be used in kubernetes as liveness probe
         # Return 200 when app is alive else 500
 
-        status = 200
+        status = 200 if await self._core.is_alive() else 500
 
         return Response(status=status)
 
