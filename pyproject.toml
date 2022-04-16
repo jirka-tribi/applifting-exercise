@@ -6,7 +6,7 @@ authors = ["Jiri Tribula <jiri.tribula@gmail.com>"]
 packages = [
     {include="applifting_exercise", from="src"}
 ]
-include = ["*.sql", "py.typed"]
+include = ["*.sql", "py.typed", "favicon.ico"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

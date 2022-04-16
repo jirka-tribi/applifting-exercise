@@ -9,7 +9,7 @@ import pytest_docker
 import tenacity
 from applifting_exercise.core import Core
 from applifting_exercise.database import Database
-from applifting_exercise.web import WebServer
+from applifting_exercise.web import PREFIX_V1, WebServer
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
 from tenacity.retry import retry_if_exception_type
 from tenacity.stop import stop_after_delay
@@ -29,6 +29,16 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
 @pytest.fixture(scope="session")
 def api_url_base() -> str:
     return "http://localhost:8080"
+
+
+@pytest.fixture(scope="session")
+def api_url_v1(api_url_base: str) -> str:
+    return f"{api_url_base}{PREFIX_V1}"
+
+
+@pytest.fixture(scope="session")
+def test_internal_token() -> str:
+    return "TEST_INTERNAL_TOKEN"
 
 
 @pytest.fixture(scope="session")
@@ -63,10 +73,20 @@ async def test_db(postgres_dsn: str) -> AsyncGenerator[Database, None]:
     await database.aclose()
 
 
-@pytest.fixture(scope="session")
-async def test_web_server(test_db: Database) -> AsyncGenerator[None, None]:
+@pytest.fixture(scope="function")
+async def drop_db_tables(test_db: Database) -> None:
+    async with test_db.pg_pool.acquire() as con:
+        await con.execute("DROP TABLE users")
 
-    core = Core(db=test_db)
+    await test_db.ensure_schema()
+
+
+@pytest.fixture(scope="session")
+async def test_web_server(
+    test_db: Database, test_internal_token: str
+) -> AsyncGenerator[None, None]:
+
+    core = Core(db=test_db, app_internal_token=test_internal_token)
     web_server = WebServer(core)
     await web_server.start_web_server()
     yield
