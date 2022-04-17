@@ -9,7 +9,13 @@ from aiohttp.web_response import Response
 from jose import JWTError, jwt
 from schema import SchemaError
 
-from .exceptions import InvalidPassword, NewUserIsAlreadyExists, UserIsNotExists
+from .exceptions import (
+    InvalidPassword,
+    NewUserIsAlreadyExists,
+    ProductIdNotExists,
+    ProductIdNotInt,
+    UserIsNotExists,
+)
 
 if TYPE_CHECKING:
     from .web import WebServer
@@ -40,6 +46,16 @@ async def error_middleware(request: Request, handler: Callable[..., Any]) -> Res
         err_msg = "Invalid username or password"
         LOGGER.exception(err_msg)
         return web.json_response({"error": err_msg}, status=401)
+
+    except ProductIdNotInt:
+        err_msg = "Product ID should be int"
+        LOGGER.exception(err_msg)
+        return web.json_response({"error": err_msg}, status=400)
+
+    except ProductIdNotExists:
+        err_msg = "Product ID not found"
+        LOGGER.exception(err_msg)
+        return web.json_response({"error": err_msg}, status=404)
 
     except Exception:  # pylint: disable=broad-except
         err_msg = "Server got itself in trouble"

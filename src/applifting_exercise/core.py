@@ -4,7 +4,13 @@ import bcrypt
 from jose import jwt
 
 from .database import Database
-from .exceptions import InvalidPassword, NewUserIsAlreadyExists, UserIsNotExists
+from .exceptions import (
+    InvalidPassword,
+    NewUserIsAlreadyExists,
+    ProductIdNotExists,
+    UserIsNotExists,
+)
+from .models import Product
 
 
 class Core:
@@ -43,6 +49,23 @@ class Core:
             raise InvalidPassword
 
         return self._generate_token(user.id, user.username)
+
+    async def create_product(self, name: str, description: str) -> int:
+        product_id = await self._db.create_product(name, description)
+
+        return product_id
+
+    async def update_product(self, product: Product) -> None:
+        updated = await self._db.update_product(product)
+
+        if updated != "UPDATE 1":
+            raise ProductIdNotExists
+
+    async def delete_product(self, product_id: int) -> None:
+        deleted = await self._db.delete_product(product_id)
+
+        if deleted != "DELETE 1":
+            raise ProductIdNotExists
 
     async def is_alive(self) -> bool:
         return await self._db.is_connected()

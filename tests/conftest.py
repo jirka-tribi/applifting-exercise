@@ -1,9 +1,13 @@
+# pylint: disable=unused-argument
+
 import asyncio
 import sys
 from asyncio.events import AbstractEventLoop
+from datetime import datetime, timedelta
 from typing import AsyncGenerator, Generator
 
 import asyncpg
+import bcrypt
 import pytest
 import pytest_docker
 import tenacity
@@ -11,6 +15,7 @@ from applifting_exercise.core import Core
 from applifting_exercise.database import Database
 from applifting_exercise.web import PREFIX_V1, WebServer
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
+from jose import jwt
 from tenacity.retry import retry_if_exception_type
 from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_fixed
@@ -77,8 +82,30 @@ async def test_db(postgres_dsn: str) -> AsyncGenerator[Database, None]:
 async def drop_db_tables(test_db: Database) -> None:
     async with test_db.pg_pool.acquire() as con:
         await con.execute("DROP TABLE users")
+        await con.execute("DROP TABLE products")
 
     await test_db.ensure_schema()
+
+
+@pytest.fixture(scope="function")
+async def prepared_db(test_db: Database, drop_db_tables: None) -> AsyncGenerator[Database, None]:
+    # Drop tables in testing DB and register one testing user (same as register endpoint)
+
+    hashed_pwd = bcrypt.hashpw(b"TestPWD123456", bcrypt.gensalt())
+    await test_db.register_user("Username", hashed_pwd)
+
+    yield test_db
+
+
+@pytest.fixture(scope="session")
+def jwt_testing_token(test_internal_token: str) -> str:
+    token = jwt.encode(
+        {"id": 1, "username": "Username", "exp": datetime.utcnow() + timedelta(hours=1)},
+        test_internal_token,
+        algorithm="HS256",
+    )
+
+    return str(token)
 
 
 @pytest.fixture(scope="session")

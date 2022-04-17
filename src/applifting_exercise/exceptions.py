@@ -8,3 +8,11 @@ class UserIsNotExists(Exception):
 
 class InvalidPassword(Exception):
     pass
+
+
+class ProductIdNotInt(Exception):
+    pass
+
+
+class ProductIdNotExists(Exception):
+    pass
