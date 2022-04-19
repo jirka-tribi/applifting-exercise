@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import asyncpg
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
 
-from .models import User
+from .models import Product, User
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class Database:
             user_id = await con.fetchval(
                 """
                     INSERT INTO
-                        users (username, password)
+                        users (username, hashed_pwd)
                     VALUES
                         ($1, $2)
                     ON CONFLICT DO NOTHING
@@ -44,10 +44,10 @@ class Database:
 
     async def get_user(self, username: str) -> Optional[User]:
         async with self.pg_pool.acquire() as con:
-            record = await con.fetchrow(
+            user_record = await con.fetchrow(
                 """
                     SELECT
-                        id, username, password
+                        id, username, hashed_pwd
                     FROM
                         users
                     WHERE
@@ -56,7 +56,71 @@ class Database:
                 username,
             )
 
-        return User(record["id"], record["username"], record["password"]) if record else None
+        return User(**user_record) if user_record else None
+
+    async def create_product(self, name: str, description: str) -> int:
+        async with self.pg_pool.acquire() as con:
+            product_id = await con.fetchval(
+                """
+                    INSERT INTO
+                        products ("name", description)
+                    VALUES
+                        ($1, $2)
+                    RETURNING id
+                """,
+                name,
+                description,
+            )
+
+        return int(product_id)
+
+    async def get_product(self, product_id: int) -> Optional[Product]:
+        async with self.pg_pool.acquire() as con:
+            product_record = await con.fetchrow(
+                """
+                    SELECT
+                        id, "name", description
+                    FROM
+                        products
+                    WHERE
+                        id = $1
+                """,
+                product_id,
+            )
+
+        return Product(**product_record) if product_record else None
+
+    async def update_product(self, product: Product) -> str:
+        async with self.pg_pool.acquire() as con:
+            updated = await con.execute(
+                """
+                    UPDATE
+                        products
+                    SET
+                        "name" = $2, description = $3
+                    WHERE
+                        id = $1
+                """,
+                product.id,
+                product.name,
+                product.description,
+            )
+
+        return str(updated)
+
+    async def delete_product(self, product_id: int) -> str:
+        async with self.pg_pool.acquire() as con:
+            deleted = await con.execute(
+                """
+                    DELETE FROM
+                        products
+                    WHERE
+                        id = $1
+                """,
+                product_id,
+            )
+
+        return str(deleted)
 
     async def is_connected(self) -> bool:
         try:

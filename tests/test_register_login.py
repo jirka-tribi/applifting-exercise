@@ -2,10 +2,9 @@
 
 from typing import Dict
 
-import aiohttp
 import pytest
+from aiohttp import ClientSession
 from jose import jwt
-
 
 INVALID_JSON_DATA = [
     {"username": "Username", "password": ""},
@@ -23,7 +22,7 @@ async def test_invalid_input_data(
 ) -> None:
 
     # All invalid input data should return 400
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         async with session.post(f"{api_url_v1}/register", json=invalid_json_data) as response:
             assert response.status == 400
 
@@ -42,7 +41,7 @@ async def test_incorrect_username_pwd(
         "password": "TestPWD123456Incorrect",
     }
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         # Register required username `Test_Correct`
         async with session.post(f"{api_url_v1}/register", json=json_data) as response:
             assert response.status == 200
@@ -63,7 +62,6 @@ async def test_incorrect_username_pwd(
 async def test_correct_register_login(
     test_web_server: None, api_url_v1: str, test_internal_token: str, drop_db_tables: None
 ) -> None:
-
     def validate_token(token: str) -> None:
         decoded_jwt_token = jwt.decode(token, test_internal_token, algorithms="HS256")
         assert decoded_jwt_token["id"] == 1
@@ -72,7 +70,7 @@ async def test_correct_register_login(
     json_data = {"username": "Username", "password": "TestPWD123456"}
 
     # Register and login with correct input data
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         async with session.post(f"{api_url_v1}/register", json=json_data) as response:
             assert response.status == 200
             test_res_register = await response.json()
