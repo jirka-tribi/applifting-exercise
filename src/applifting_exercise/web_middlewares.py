@@ -9,7 +9,7 @@ from aiohttp.web_response import Response
 from jose import JWTError, jwt
 from schema import SchemaError
 
-from .exceptions import InvalidPassword, UserIsExists, UserIsNotExists
+from .exceptions import InvalidPassword, NewUserIsAlreadyExists, UserIsNotExists
 
 if TYPE_CHECKING:
     from .web import WebServer
@@ -36,7 +36,7 @@ async def error_middleware(request: Request, handler: Callable[..., Any]) -> Res
         LOGGER.exception("Validation of data in request failed")
         return web.json_response({"error": str(e)}, status=400)
 
-    except (UserIsExists, InvalidPassword, UserIsNotExists):
+    except (NewUserIsAlreadyExists, InvalidPassword, UserIsNotExists):
         err_msg = "Invalid username or password"
         LOGGER.exception(err_msg)
         return web.json_response({"error": err_msg}, status=401)

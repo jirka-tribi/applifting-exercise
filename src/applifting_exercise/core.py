@@ -4,7 +4,7 @@ import bcrypt
 from jose import jwt
 
 from .database import Database
-from .exceptions import InvalidPassword, UserIsExists, UserIsNotExists
+from .exceptions import InvalidPassword, NewUserIsAlreadyExists, UserIsNotExists
 
 
 class Core:
@@ -24,13 +24,12 @@ class Core:
         return str(generated_token)
 
     async def register(self, username: str, password: str) -> str:
-        if await self._db.is_user_exists(username):
-            raise UserIsExists
-
         hashed_pwd = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-        # Store new user and hashed password into DB
+        # Check if user is exists and store new user and hashed password into DB
         user_id = await self._db.register_user(username, hashed_pwd)
+        if not user_id:
+            raise NewUserIsAlreadyExists
 
         return self._generate_token(user_id, username)
 

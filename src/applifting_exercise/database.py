@@ -25,23 +25,7 @@ class Database:
             with resources.path(__package__, "database_schema.sql") as sql_schema_path:
                 await con.execute(sql_schema_path.read_text())
 
-    async def is_user_exists(self, username: str) -> bool:
-        async with self.pg_pool.acquire() as con:
-            is_user_exists = await con.fetchval(
-                """
-                    SELECT EXISTS (
-                        SELECT FROM
-                            users
-                        WHERE
-                            username = $1
-                    )
-                """,
-                username,
-            )
-
-        return bool(is_user_exists)
-
-    async def register_user(self, username: str, hashed_pwd: bytes) -> int:
+    async def register_user(self, username: str, hashed_pwd: bytes) -> Optional[int]:
         async with self.pg_pool.acquire() as con:
             user_id = await con.fetchval(
                 """
@@ -49,13 +33,14 @@ class Database:
                         users (username, password)
                     VALUES
                         ($1, $2)
+                    ON CONFLICT DO NOTHING
                     RETURNING id
                 """,
                 username,
                 hashed_pwd,
             )
 
-        return int(user_id)
+        return int(user_id) if user_id else None
 
     async def get_user(self, username: str) -> Optional[User]:
         async with self.pg_pool.acquire() as con:
