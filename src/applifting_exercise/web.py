@@ -8,8 +8,9 @@ from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 
 from .core import Core
-from .models import USER_REQUEST_SCHEMA
-from .web_middlewares import error_middleware
+from .exceptions import ProductIdNotInt
+from .models import PRODUCT_SCHEMA, USER_REQUEST_SCHEMA, Product
+from .web_middlewares import auth_token_validate, error_middleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +38,15 @@ class WebServer:
         self._web_app_v1.router.add_route("POST", "/register", self.register)
         self._web_app_v1.router.add_route("POST", "/login", self.login)
 
+        self._web_app_v1.router.add_route("POST", "/products/create", self.create_product)
+        # self._web_app_v1.router.add_route("GET", "/products/{product_id}/read", self.read_product)
+        self._web_app_v1.router.add_route(
+            "PUT", "/products/{product_id}/update", self.update_product
+        )
+        self._web_app_v1.router.add_route(
+            "DELETE", "/products/{product_id}/delete", self.delete_product
+        )
+
         self._web_app_base.router.add_route("GET", "/", self.basic_info)
         self._web_app_base.router.add_route("GET", "/favicon.ico", self.favicon)
         self._web_app_base.router.add_route("GET", "/status", self.status)
@@ -48,7 +58,7 @@ class WebServer:
         site = web.TCPSite(self._runner)
         await site.start()
 
-    async def register(self, request: Request) -> web.Response:
+    async def register(self, request: Request) -> Response:
         data = await request.json()
         validated_user = USER_REQUEST_SCHEMA.validate(data)
 
@@ -58,7 +68,7 @@ class WebServer:
 
         return web.json_response({"token": token})
 
-    async def login(self, request: Request) -> web.Response:
+    async def login(self, request: Request) -> Response:
         data = await request.json()
         validated_user = USER_REQUEST_SCHEMA.validate(data)
 
@@ -67,6 +77,48 @@ class WebServer:
         )
 
         return web.json_response({"token": token})
+
+    @auth_token_validate()
+    async def create_product(self, request: Request) -> Response:
+        data = await request.json()
+        validated_product = PRODUCT_SCHEMA.validate(data)
+
+        product_id = await self._core.create_product(
+            validated_product["name"], validated_product["description"]
+        )
+
+        return web.json_response({"id": product_id}, status=201)
+
+    async def update_product(self, request: Request) -> Response:
+        req_info = request.match_info
+
+        try:
+            product_id = int(req_info["product_id"])
+        except ValueError as e:
+            raise ProductIdNotInt from e
+
+        data = await request.json()
+        validated_product_update = PRODUCT_SCHEMA.validate(data)
+
+        product_to_update = Product(
+            product_id, validated_product_update["name"], validated_product_update["description"]
+        )
+
+        await self._core.update_product(product_to_update)
+
+        return web.json_response({})
+
+    async def delete_product(self, request: Request) -> Response:
+        req_info = request.match_info
+
+        try:
+            product_id = int(req_info["product_id"])
+        except ValueError as e:
+            raise ProductIdNotInt from e
+
+        await self._core.delete_product(product_id)
+
+        return web.json_response({})
 
     @staticmethod
     async def basic_info(_: Request) -> Response:

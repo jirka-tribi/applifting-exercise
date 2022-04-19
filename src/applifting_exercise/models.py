@@ -14,6 +14,23 @@ USER_REQUEST_SCHEMA = Schema(
 class User:
     __slots__ = ["id", "username", "hashed_pwd"]
 
-    id: int
+    id: int  # pylint: disable=invalid-name
     username: str
     hashed_pwd: bytes
+
+
+PRODUCT_SCHEMA = Schema(
+    {
+        "name": And(str, lambda s: 3 < len(s.strip()) < 100),
+        "description": str,
+    }
+)
+
+
+@dataclass
+class Product:
+    __slots__ = ["id", "name", "description"]
+
+    id: int  # pylint: disable=invalid-name
+    name: str
+    description: str
