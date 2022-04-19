@@ -58,6 +58,11 @@ class WebServer:
             "DELETE", "/products/{product_id}/delete", self.delete_product
         )
 
+        self._web_app_v1.router.add_route("GET", "/products/{product_id}/offers", self.get_offers)
+        self._web_app_v1.router.add_route(
+            "GET", "/products/{product_id}/offers_all", self.get_offers_all
+        )
+
         self._web_app_base.router.add_route("GET", "/", self.basic_info)
         self._web_app_base.router.add_route("GET", "/favicon.ico", self.favicon)
         self._web_app_base.router.add_route("GET", "/status", self.status)
@@ -121,6 +126,20 @@ class WebServer:
         await self._core.update_product(product_to_update)
 
         return web.json_response({})
+
+    async def get_offers(self, request: Request) -> Response:
+        product_id = validate_product_id(request.match_info)
+
+        offers_list = await self._core.get_offers(product_id)
+
+        return web.json_response({"offers": [offer.for_api for offer in offers_list]})
+
+    async def get_offers_all(self, request: Request) -> Response:
+        product_id = validate_product_id(request.match_info)
+
+        offers_list = await self._core.get_offers_all(product_id)
+
+        return web.json_response({"offers": [offer.for_api for offer in offers_list]})
 
     @auth_token_validate()
     async def delete_product(self, request: Request) -> Response:

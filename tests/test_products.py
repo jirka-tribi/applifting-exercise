@@ -4,6 +4,7 @@ from typing import Dict
 
 import pytest
 from aiohttp import ClientSession
+from aioresponses import aioresponses
 from applifting_exercise.database import Database
 
 INVALID_JSON_DATA = [
@@ -87,15 +88,17 @@ async def test_create_product(
         "name": "Product Name",
         "description": "Product Description",
     }
+    with aioresponses(passthrough=["http://localhost:"]) as mocked_aio_response:  # type: ignore
+        mocked_aio_response.post("https://test-offers.com/api/v1/products/register")
 
-    async with ClientSession() as session:
-        async with session.post(
-            f"{api_url_v1}/products/create",
-            json=create_product_json,
-            headers={"Authorization": f"Bearer {jwt_testing_token}"},
-        ) as response:
-            assert response.status == 201
-            test_create_product_json = await response.json()
+        async with ClientSession() as session:
+            async with session.post(
+                f"{api_url_v1}/products/create",
+                json=create_product_json,
+                headers={"Authorization": f"Bearer {jwt_testing_token}"},
+            ) as response:
+                assert response.status == 201
+                test_create_product_json = await response.json()
 
     assert test_create_product_json["id"] == 1
 
@@ -107,7 +110,7 @@ async def test_create_product(
 
 async def test_get_product(prepared_db: Database, test_web_server: None, api_url_v1: str) -> None:
 
-    product_id = await prepared_db.create_product("Product Name", "Product Description")
+    product_id = (await prepared_db.create_product("Product Name", "Product Description")).id
 
     async with ClientSession() as session:
         async with session.get(
@@ -125,7 +128,7 @@ async def test_update_product(
     prepared_db: Database, test_web_server: None, api_url_v1: str, jwt_testing_token: str
 ) -> None:
 
-    product_id = await prepared_db.create_product("Product Name", "Product Description")
+    product_id = (await prepared_db.create_product("Product Name", "Product Description")).id
 
     update_product_json = {
         "name": "Product Name Updated",
@@ -150,7 +153,7 @@ async def test_delete_product(
     prepared_db: Database, test_web_server: None, api_url_v1: str, jwt_testing_token: str
 ) -> None:
 
-    product_id = await prepared_db.create_product("Product Name", "Product Description")
+    product_id = (await prepared_db.create_product("Product Name", "Product Description")).id
 
     async with ClientSession() as session:
         async with session.delete(

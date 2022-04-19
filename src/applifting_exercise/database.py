@@ -1,11 +1,11 @@
 import logging
 from importlib import resources
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import asyncpg
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
 
-from .models import Product, User
+from .models import Offer, Product, User
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class Database:
 
         return User(**user_record) if user_record else None
 
-    async def create_product(self, name: str, description: str) -> int:
+    async def create_product(self, name: str, description: str) -> Product:
         async with self.pg_pool.acquire() as con:
             product_id = await con.fetchval(
                 """
@@ -72,7 +72,7 @@ class Database:
                 description,
             )
 
-        return int(product_id)
+        return Product(product_id, name, description)
 
     async def get_product(self, product_id: int) -> Optional[Product]:
         async with self.pg_pool.acquire() as con:
@@ -121,6 +121,84 @@ class Database:
             )
 
         return str(deleted)
+
+    async def get_all_products_ids(self) -> List[int]:
+        async with self.pg_pool.acquire() as con:
+            product_ids_records = await con.fetch(
+                """
+                    SELECT
+                        id
+                    FROM
+                        products
+                """
+            )
+
+        return [product_id["id"] for product_id in product_ids_records]
+
+    async def insert_new_offers(self, offers_list: List[Offer]) -> None:
+        async with self.pg_pool.acquire() as con:
+            await con.executemany(
+                """
+                    INSERT INTO
+                        offers (id, product_id, price, items_in_stock, created_at)
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT DO NOTHING
+                """,
+                [
+                    (
+                        offer.id,
+                        offer.product_id,
+                        offer.price,
+                        offer.items_in_stock,
+                        offer.created_at,
+                    )
+                    for offer in offers_list
+                ],
+            )
+
+    async def get_offers(self, product_id: int) -> List[Offer]:
+        async with self.pg_pool.acquire() as con:
+            offers_records = await con.fetch(
+                """
+                    SELECT
+                        id, product_id, price, items_in_stock, created_at
+                    FROM
+                        offers
+                    WHERE
+                        product_id = $1
+                    AND
+                        created_at = (SELECT MAX(created_at) FROM offers WHERE product_id = $1)
+                """,
+                product_id,
+            )
+
+        offers_list = []
+
+        for record in offers_records:
+            offers_list.append(Offer(**dict(record)))
+
+        return offers_list
+
+    async def get_offers_all(self, product_id: int) -> List[Offer]:
+        async with self.pg_pool.acquire() as con:
+            offers_records = await con.fetch(
+                """
+                    SELECT
+                        id, product_id, price, items_in_stock, created_at
+                    FROM
+                        offers
+                    WHERE
+                        product_id = $1
+                """,
+                product_id,
+            )
+
+        offers_list = []
+
+        for record in offers_records:
+            offers_list.append(Offer(**dict(record)))
+
+        return offers_list
 
     async def is_connected(self) -> bool:
         try:
