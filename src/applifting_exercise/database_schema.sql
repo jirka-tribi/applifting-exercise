@@ -9,3 +9,11 @@ CREATE TABLE IF NOT EXISTS products(
     name VARCHAR(100) NOT NULL,
     description TEXT
 );
+
+CREATE TABLE IF NOT EXISTS offers(
+    id INT PRIMARY KEY,
+    product_id INT NOT NULL,
+    price INT NOT NULL,
+    items_in_stock INT NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);

@@ -1,4 +1,6 @@
+import asyncio
 from datetime import datetime, timedelta
+from typing import List
 
 import bcrypt
 from jose import jwt
@@ -10,14 +12,24 @@ from .exceptions import (
     ProductIdNotExists,
     UserIsNotExists,
 )
-from .models import Product
+from .models import Offer, Product
+from .services import OffersService
 
 
 class Core:
-    def __init__(self, db: Database, app_internal_token: str) -> None:
+    def __init__(
+        self, offers_service: OffersService, db: Database, app_internal_token: str
+    ) -> None:
+
+        self._offers_service = offers_service
         self._db = db
 
         self.app_internal_token = app_internal_token
+
+    async def background_tasks(self) -> None:
+        while True:
+            await self._update_offers()
+            await asyncio.sleep(60)
 
     def _generate_token(self, user_id: int, username: str) -> str:
         # Generate jwt token with expiration one hour
@@ -51,9 +63,15 @@ class Core:
         return self._generate_token(user.id, user.username)
 
     async def create_product(self, name: str, description: str) -> int:
-        product_id = await self._db.create_product(name, description)
+        product = await self._db.create_product(name, description)
+        registered = await self._offers_service.register_product(product)
 
-        return product_id
+        # If register was not successful delete product from DB and raise RuntimeError
+        if not registered:
+            await self._db.delete_product(product.id)
+            raise RuntimeError("Product was not registered into offers service")
+
+        return product.id
 
     async def get_product(self, product_id: int) -> Product:
         product = await self._db.get_product(product_id)
@@ -74,6 +92,27 @@ class Core:
 
         if deleted != "DELETE 1":
             raise ProductIdNotExists
+
+    async def get_offers(self, product_id: int) -> List[Offer]:
+        offers_list = await self._db.get_offers(product_id)
+
+        return offers_list
+
+    async def get_offers_all(self, product_id: int) -> List[Offer]:
+        offers_all_list = await self._db.get_offers_all(product_id)
+
+        return offers_all_list
+
+    async def _update_offers(self) -> None:
+        products_ids = await self._db.get_all_products_ids()
+        coroutines = [self._offers_service.get_offers(product_id) for product_id in products_ids]
+        offers_results = await asyncio.gather(*coroutines)
+
+        offers_list = []
+        for offers in [offers for offers in offers_results if offers]:
+            offers_list.extend(offers)
+
+        await self._db.insert_new_offers(offers_list)
 
     async def is_alive(self) -> bool:
         return await self._db.is_connected()

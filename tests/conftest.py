@@ -1,4 +1,4 @@
-# pylint: disable=unused-argument
+# pylint: disable=unused-argument, protected-access
 
 import asyncio
 import sys
@@ -13,6 +13,7 @@ import pytest_docker
 import tenacity
 from applifting_exercise.core import Core
 from applifting_exercise.database import Database
+from applifting_exercise.services import OffersService
 from applifting_exercise.web import PREFIX_V1, WebServer
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
 from jose import jwt
@@ -83,6 +84,7 @@ async def drop_db_tables(test_db: Database) -> None:
     async with test_db.pg_pool.acquire() as con:
         await con.execute("DROP TABLE users")
         await con.execute("DROP TABLE products")
+        await con.execute("DROP TABLE offers")
 
     await test_db.ensure_schema()
 
@@ -109,12 +111,26 @@ def jwt_testing_token(test_internal_token: str) -> str:
 
 
 @pytest.fixture(scope="session")
+def offers_service() -> OffersService:
+    offers_service = OffersService(
+        {
+            "offers_service_url": "https://test-offers.com/api/v1",
+            "offers_service_concurrency": 5,
+        }
+    )
+    offers_service._auth_header = {"Bearer": "TEST"}
+
+    return offers_service
+
+
+@pytest.fixture(scope="session")
 async def test_web_server(
-    test_db: Database, test_internal_token: str
+    offers_service: OffersService, test_db: Database, test_internal_token: str
 ) -> AsyncGenerator[None, None]:
 
-    core = Core(db=test_db, app_internal_token=test_internal_token)
+    core = Core(offers_service=offers_service, db=test_db, app_internal_token=test_internal_token)
     web_server = WebServer(core)
     await web_server.start_web_server()
     yield
     await web_server.aclose()
+    await offers_service.aclose()
