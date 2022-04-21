@@ -1,11 +1,12 @@
 import logging
+from datetime import datetime
 from importlib import resources
 from typing import Any, Dict, List, Optional
 
 import asyncpg
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
 
-from .models import Offer, Product, User
+from .models import Offer, Price, Product, User
 
 LOGGER = logging.getLogger(__name__)
 
@@ -199,6 +200,34 @@ class Database:
             offers_list.append(Offer(**dict(record)))
 
         return offers_list
+
+    async def get_prices_from_to(
+        self, product_id: int, from_date: datetime, to_date: datetime
+    ) -> List[Price]:
+
+        async with self.pg_pool.acquire() as con:
+            prices_records = await con.fetch(
+                """
+                    SELECT
+                        price, created_at
+                    FROM
+                        offers
+                    WHERE
+                        product_id = $1
+                    AND
+                       created_at BETWEEN $2 AND $3
+                """,
+                product_id,
+                from_date,
+                to_date,
+            )
+
+        prices_list = []
+
+        for record in prices_records:
+            prices_list.append(Price(record["price"], record["created_at"]))
+
+        return prices_list
 
     async def is_connected(self) -> bool:
         try:

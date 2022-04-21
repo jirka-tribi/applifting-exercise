@@ -11,7 +11,7 @@ from aiohttp.web_urldispatcher import UrlMappingMatchInfo
 
 from .core import Core
 from .exceptions import ProductIdNotInt
-from .models import PRODUCT_SCHEMA, USER_REQUEST_SCHEMA, Product
+from .models import PRODUCT_SCHEMA, USER_REQUEST_SCHEMA, Product, PRICES_FROM_TO_SCHEMA
 from .web_middlewares import auth_token_validate, error_middleware
 
 logging.basicConfig(
@@ -58,6 +58,7 @@ class WebServer:
         self._web_app_v1.router.add_route(
             "GET", "/products/{product_id}/offers_all", self.get_offers_all
         )
+        self._web_app_v1.router.add_route("GET", "/products/{product_id}/prices", self.get_prices)
 
         self._web_app_base.router.add_route("GET", "/", self.basic_info)
         self._web_app_base.router.add_route("GET", "/favicon.ico", self.favicon)
@@ -144,6 +145,20 @@ class WebServer:
         offers_list = await self._core.get_offers_all(product_id)
 
         return web.json_response({"offers": [offer.for_api for offer in offers_list]})
+
+    async def get_prices(self, request: Request) -> Response:
+        product_id = validate_product_id(request.match_info)
+        data = await request.json()
+
+        validated_prices_date = PRICES_FROM_TO_SCHEMA.validate(data)
+        from_date = validated_prices_date["from_date"]
+        to_date = validated_prices_date["to_date"]
+
+        prices_from_to, percentage = await self._core.get_prices(product_id, from_date, to_date)
+
+        return web.json_response(
+            {"prices": [price.value for price in prices_from_to], "percentage": percentage}
+        )
 
     @staticmethod
     async def basic_info(_: Request) -> Response:

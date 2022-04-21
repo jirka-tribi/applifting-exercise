@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Tuple
 
 import bcrypt
 from jose import jwt
@@ -12,8 +12,9 @@ from .exceptions import (
     ProductIdNotExists,
     UserIsNotExists,
 )
-from .models import Offer, Product
+from .models import Offer, Product, Price
 from .services import OffersService
+from operator import attrgetter
 
 
 class Core:
@@ -102,6 +103,24 @@ class Core:
         offers_all_list = await self._db.get_offers_all(product_id)
 
         return offers_all_list
+
+    async def get_prices(
+        self, product_id: int, from_date: datetime, to_date: datetime
+    ) -> Tuple[List[Price], int]:
+
+        prices_from_to = await self._db.get_prices_from_to(product_id, from_date, to_date)
+
+        newest_price = max(prices_from_to, key=attrgetter("created_at"))
+        oldest_price = min(prices_from_to, key=attrgetter("created_at"))
+
+        if newest_price.value == oldest_price.value:
+            percentage = 100
+        elif newest_price.value > oldest_price.value:
+            percentage = int((newest_price.value / oldest_price.value) * 100 - 100)
+        else:
+            percentage = int(100 - (newest_price.value / oldest_price.value) * 100)
+
+        return prices_from_to, percentage
 
     async def _update_offers(self) -> None:
         products_ids = await self._db.get_all_products_ids()

@@ -17,8 +17,8 @@ async def test_get_offers(prepared_db: Database, test_web_server: None, api_url_
 
     offer_1 = Offer(1, product_id, 100, 5, datetime.utcnow())
     offer_2 = Offer(2, product_id, 200, 10, datetime.utcnow() + timedelta(hours=1))
-    offers_list = [offer_1, offer_2]
-    await prepared_db.insert_new_offers(offers_list)
+
+    await prepared_db.insert_new_offers([offer_1, offer_2])
 
     async with ClientSession() as session:
         async with session.get(
@@ -38,9 +38,8 @@ async def test_get_offers_all(
 
     offer_1 = Offer(1, product_id, 100, 5, datetime.utcnow())
     offer_2 = Offer(2, product_id, 200, 10, datetime.utcnow())
-    offers_list = [offer_1, offer_2]
 
-    await prepared_db.insert_new_offers(offers_list)
+    await prepared_db.insert_new_offers([offer_1, offer_2])
 
     async with ClientSession() as session:
         async with session.get(

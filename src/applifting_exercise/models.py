@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Union
 
-from schema import And, Schema
+from schema import And, Schema, Use
 
 USER_REQUEST_SCHEMA = Schema(
     {
@@ -51,3 +51,19 @@ class Offer:
     @property
     def for_api(self) -> Dict[str, Union[str, int]]:
         return {"id": self.product_id, "price": self.price, "items_in_stock": self.items_in_stock}
+
+
+PRICES_FROM_TO_SCHEMA = Schema(
+    {
+        "from_date": Use(datetime.fromisoformat),
+        "to_date": Use(datetime.fromisoformat),
+    }
+)
+
+
+@dataclass
+class Price:
+    __slots__ = ["value", "created_at"]
+
+    value: int
+    created_at: datetime
