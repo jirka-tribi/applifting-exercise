@@ -1,4 +1,5 @@
 import logging
+from dataclasses import asdict
 from importlib import resources
 from importlib.metadata import version
 
@@ -6,6 +7,7 @@ from aiohttp import web
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
+from aiohttp.web_urldispatcher import UrlMappingMatchInfo
 
 from .core import Core
 from .exceptions import ProductIdNotInt
@@ -19,6 +21,15 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 PREFIX_V1 = "/api/v1"
+
+
+def validate_product_id(match_info: UrlMappingMatchInfo) -> int:
+    try:
+        product_id = int(match_info["product_id"])
+    except ValueError as e:
+        raise ProductIdNotInt from e
+
+    return product_id
 
 
 class WebServer:
@@ -39,7 +50,7 @@ class WebServer:
         self._web_app_v1.router.add_route("POST", "/login", self.login)
 
         self._web_app_v1.router.add_route("POST", "/products/create", self.create_product)
-        # self._web_app_v1.router.add_route("GET", "/products/{product_id}/read", self.read_product)
+        self._web_app_v1.router.add_route("GET", "/products/{product_id}/get", self.get_product)
         self._web_app_v1.router.add_route(
             "PUT", "/products/{product_id}/update", self.update_product
         )
@@ -89,13 +100,16 @@ class WebServer:
 
         return web.json_response({"id": product_id}, status=201)
 
-    async def update_product(self, request: Request) -> Response:
-        req_info = request.match_info
+    async def get_product(self, request: Request) -> Response:
+        product_id = validate_product_id(request.match_info)
 
-        try:
-            product_id = int(req_info["product_id"])
-        except ValueError as e:
-            raise ProductIdNotInt from e
+        product = await self._core.get_product(product_id)
+
+        return web.json_response(asdict(product))
+
+    @auth_token_validate()
+    async def update_product(self, request: Request) -> Response:
+        product_id = validate_product_id(request.match_info)
 
         data = await request.json()
         validated_product_update = PRODUCT_SCHEMA.validate(data)
@@ -108,13 +122,9 @@ class WebServer:
 
         return web.json_response({})
 
+    @auth_token_validate()
     async def delete_product(self, request: Request) -> Response:
-        req_info = request.match_info
-
-        try:
-            product_id = int(req_info["product_id"])
-        except ValueError as e:
-            raise ProductIdNotInt from e
+        product_id = validate_product_id(request.match_info)
 
         await self._core.delete_product(product_id)
 

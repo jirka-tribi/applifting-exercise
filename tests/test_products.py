@@ -95,11 +95,30 @@ async def test_create_product(
             headers={"Authorization": f"Bearer {jwt_testing_token}"},
         ) as response:
             assert response.status == 201
+            test_create_product_json = await response.json()
+
+    assert test_create_product_json["id"] == 1
 
     product = await prepared_db.get_product(1)
     assert product is not None
     assert product.name == "Product Name"
     assert product.description == "Product Description"
+
+
+async def test_get_product(prepared_db: Database, test_web_server: None, api_url_v1: str) -> None:
+
+    product_id = await prepared_db.create_product("Product Name", "Product Description")
+
+    async with ClientSession() as session:
+        async with session.get(
+            f"{api_url_v1}/products/{product_id}/get",
+        ) as response:
+            assert response.status == 200
+            test_get_product_json = await response.json()
+
+    assert test_get_product_json["id"] == 1
+    assert test_get_product_json["name"] == "Product Name"
+    assert test_get_product_json["description"] == "Product Description"
 
 
 async def test_update_product(

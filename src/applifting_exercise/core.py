@@ -55,6 +55,14 @@ class Core:
 
         return product_id
 
+    async def get_product(self, product_id: int) -> Product:
+        product = await self._db.get_product(product_id)
+
+        if not product:
+            raise ProductIdNotExists
+
+        return product
+
     async def update_product(self, product: Product) -> None:
         updated = await self._db.update_product(product)
 
