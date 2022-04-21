@@ -1,0 +1,32 @@
+version: "3.5"
+services:
+  web:
+    build: .
+    networks:
+      - app_network
+    environment:
+      APP_INTERNAL_TOKEN: ${APP_INTERNAL_TOKEN}
+      POSTGRES_HOST: postgres
+      POSTGRES_DBNAME: ${POSTGRES_DBNAME}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - "postgres"
+    restart: unless-stopped
+  postgres:
+    image: postgres
+    networks:
+      app_network:
+        aliases:
+          - postgres
+    environment:
+      POSTGRES_DBNAME: ${POSTGRES_DBNAME}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+
+networks:
+  app_network:
