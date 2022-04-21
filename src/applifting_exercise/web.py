@@ -11,7 +11,7 @@ from aiohttp.web_urldispatcher import UrlMappingMatchInfo
 
 from .core import Core
 from .exceptions import ProductIdNotInt
-from .models import PRODUCT_SCHEMA, USER_REQUEST_SCHEMA, Product, PRICES_FROM_TO_SCHEMA
+from .models import PRICES_FROM_TO_SCHEMA, PRODUCT_SCHEMA, USER_REQUEST_SCHEMA, Product
 from .web_middlewares import auth_token_validate, error_middleware
 
 logging.basicConfig(
@@ -33,8 +33,9 @@ def validate_product_id(match_info: UrlMappingMatchInfo) -> int:
 
 
 class WebServer:
-    def __init__(self, core: Core) -> None:
+    def __init__(self, core: Core, port: int) -> None:
         self._core = core
+        self._port = port
 
         self._web_app_v1 = web.Application(middlewares=[error_middleware])
         self._web_app_v1["app_internal_token"] = self._core.app_internal_token
@@ -65,10 +66,9 @@ class WebServer:
         self._web_app_base.router.add_route("GET", "/status", self.status)
 
     async def start_web_server(self) -> None:
-        LOGGER.info("Start web server")
         await self._runner.setup()
-        # Default host `0.0.0.0` and port `8080`
-        site = web.TCPSite(self._runner)
+        LOGGER.info("Start web server with port %s", self._port)
+        site = web.TCPSite(self._runner, port=self._port)
         await site.start()
 
     async def register(self, request: Request) -> Response:

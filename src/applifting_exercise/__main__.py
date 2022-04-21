@@ -35,7 +35,7 @@ class App:
             app_internal_token=self.config["general"]["app_internal_token"],
         )
 
-        self.web_server = WebServer(self.core)
+        self.web_server = WebServer(self.core, self.config["web"]["port"])
 
     async def run(self) -> None:
         assert self.web_server is not None

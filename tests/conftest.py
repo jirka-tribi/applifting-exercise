@@ -129,7 +129,7 @@ async def test_web_server(
 ) -> AsyncGenerator[None, None]:
 
     core = Core(offers_service=offers_service, db=test_db, app_internal_token=test_internal_token)
-    web_server = WebServer(core)
+    web_server = WebServer(core, 8080)
     await web_server.start_web_server()
     yield
     await web_server.aclose()
