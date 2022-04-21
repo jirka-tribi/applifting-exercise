@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, Union
 
 from schema import And, Schema
 
@@ -34,3 +36,18 @@ class Product:
     id: int  # pylint: disable=invalid-name
     name: str
     description: str
+
+
+@dataclass
+class Offer:
+    __slots__ = ["id", "product_id", "price", "items_in_stock", "created_at"]
+
+    id: int  # pylint: disable=invalid-name
+    product_id: int
+    price: int
+    items_in_stock: int
+    created_at: datetime
+
+    @property
+    def for_api(self) -> Dict[str, Union[str, int]]:
+        return {"id": self.product_id, "price": self.price, "items_in_stock": self.items_in_stock}
