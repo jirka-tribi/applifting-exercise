@@ -167,7 +167,9 @@ class WebServer:
         html = (
             f"<p style='font-size: 22px'>"
             f"App Name:&nbsp;&nbsp;&nbsp;&nbsp;<strong>{__package__}</strong></h2><br> "
-            f"App Version:&nbsp;<strong>{version(__package__)}</strong></p><br>"
+            f"App Version:&nbsp;<strong>{version(__package__)}</strong></p>"
+            "<p style='font-size: 18px'>Readme:&nbsp;&nbsp;"
+            "<a href='https://github.com/jirka-tribi/applifting-exercise'>link</a></p>"
         )
 
         return Response(text=html, content_type="text/html")
