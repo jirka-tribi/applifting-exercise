@@ -9,18 +9,19 @@ from typing import AsyncGenerator, Generator
 import asyncpg
 import bcrypt
 import pytest
-import pytest_docker
 import tenacity
 from applifting_exercise.core import Core
 from applifting_exercise.database import Database
 from applifting_exercise.services import OffersService
 from applifting_exercise.web import PREFIX_V1, WebServer
 from asyncpg.exceptions import CannotConnectNowError, ConnectionDoesNotExistError
+from pytest_docker_compose import ContainerGetter
 from jose import jwt
 from tenacity.retry import retry_if_exception_type
 from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_fixed
 
+pytest_plugins = ["docker_compose"]
 
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[AbstractEventLoop, None, None]:
@@ -48,9 +49,9 @@ def test_internal_token() -> str:
 
 
 @pytest.fixture(scope="session")
-def postgres_dsn(docker_services: pytest_docker.plugin.Services) -> str:
+def postgres_dsn(session_scoped_container_getter: ContainerGetter) -> str:
     host = "127.0.0.1"
-    port = docker_services.port_for("postgres", 5432)
+    port = session_scoped_container_getter.get("postgres").network_info[0].host_port
     username = password = "postgres"
     database = "postgres"
     return f"postgresql://{username}:{password}@{host}:{port}/{database}?sslmode=disable"
