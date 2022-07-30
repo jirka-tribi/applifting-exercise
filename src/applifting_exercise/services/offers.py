@@ -12,30 +12,41 @@ LOGGER = logging.getLogger(__name__)
 
 
 class OffersService:
-    def __init__(self, offers_config: Dict[str, Union[str, int]]) -> None:
+    def __init__(
+        self,
+        client_session: ClientSession,
+        auth_header: Dict[str, str],
+        offers_config: Dict[str, Union[str, int]],
+    ) -> None:
+
+        self._client_session = client_session
+        self._auth_header = auth_header
+
         self._offers_service_url = offers_config["offers_service_url"]
-        self._semaphore = asyncio.Semaphore(int(offers_config["offers_service_concurrency"]))
+        self._semaphore = asyncio.Semaphore(
+            int(offers_config["offers_service_concurrency"])
+        )
 
-        self._client_session = ClientSession()
-        self._auth_header: Optional[Dict[str, str]] = None
+    @classmethod
+    async def async_init(
+        cls, offers_config: Dict[str, Union[str, int]]
+    ) -> "OffersService":
 
-    async def _get_auth_token(self) -> str:
-        async with self._client_session.post(
-            f"{self._offers_service_url}/auth",
+        client_session = ClientSession()
+        offers_service_url = offers_config["offers_service_url"]
+
+        async with client_session.post(
+            f"{offers_service_url}/auth",
         ) as response:
             resp = await response.json()
 
-        return str(resp["access_token"])
+        auth_token = str(resp["access_token"])
 
-    async def store_auth_header(self) -> None:
-        auth_token = await self._get_auth_token()
-        self._auth_header = {"Bearer": auth_token}
+        return cls(client_session, {"Bearer": auth_token}, offers_config)
 
     async def register_product(self, product: Product) -> bool:
         # Try register product into offer service
         # Return True if register was successful
-
-        assert self._auth_header is not None
 
         try:
             async with self._client_session.post(
@@ -52,7 +63,6 @@ class OffersService:
         return True
 
     async def get_offers(self, product_id: int) -> Optional[List[Offer]]:
-        assert self._auth_header is not None
         get_offer_at = datetime.utcnow()
 
         async with self._semaphore:

@@ -15,19 +15,18 @@ class App:
         self.db: Optional[Database] = None
         self.core: Optional[Core] = None
         self.web_server: Optional[WebServer] = None
+        self.offers_service: Optional[OffersService] = None
 
         # Load config.conf file with all required configurations fields
-        with resources.path(__package__, "config.conf") as pg_config_path:
-            self.config: Dict[str, Any] = ConfigFactory.parse_file(pg_config_path)
-
-        self.offers_service = OffersService(self.config["offers"])
+        with resources.path(__package__, "config.conf") as config_path:
+            self.config: Dict[str, Any] = ConfigFactory.parse_file(config_path)
 
     async def setup(self) -> None:
         self.db = await Database.async_init(self.config["postgres"])
         await self.db.ensure_schema()
 
         # Call offers service and store header with auth token for other calls
-        await self.offers_service.store_auth_header()
+        self.offers_service = await OffersService.async_init(self.config["offers"])
 
         self.core = Core(
             offers_service=self.offers_service,
@@ -50,7 +49,8 @@ class App:
         if self.db:
             await self.db.aclose()
 
-        await self.offers_service.aclose()
+        if self.offers_service:
+            await self.offers_service.aclose()
 
 
 def main() -> None:

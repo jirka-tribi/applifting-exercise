@@ -20,6 +20,7 @@ from jose import jwt
 from tenacity.retry import retry_if_exception_type
 from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_fixed
+from aiohttp import ClientSession
 
 pytest_plugins = ["docker_compose"]
 
@@ -112,14 +113,15 @@ def jwt_testing_token(test_internal_token: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def offers_service() -> OffersService:
+async def offers_service() -> OffersService:
     offers_service = OffersService(
+        ClientSession(),
+        {"Bearer": "TEST"},
         {
             "offers_service_url": "https://test-offers.com/api/v1",
             "offers_service_concurrency": 5,
         }
     )
-    offers_service._auth_header = {"Bearer": "TEST"}
 
     return offers_service
 

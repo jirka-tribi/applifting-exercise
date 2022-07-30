@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Tuple
+from typing import List, Tuple, cast
 
 import bcrypt
 from jose import jwt
@@ -40,7 +40,7 @@ class Core:
             algorithm="HS256",
         )
 
-        return str(generated_token)
+        return cast(str, generated_token)
 
     async def register(self, username: str, password: str) -> str:
         hashed_pwd = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
